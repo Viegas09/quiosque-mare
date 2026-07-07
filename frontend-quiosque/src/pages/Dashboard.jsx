@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, ChefHat, CheckCircle, TrendingUp, Loader2, RefreshCw } from 'lucide-react';
+import { Clock, ChefHat, CheckCircle, TrendingUp, Loader2, RefreshCw, LogOut } from 'lucide-react';
 import { pedidoService } from '../services/pedidoService';
 import socketService from '../services/socket';
+import { useAuth } from '../context/useAuth';
 import PedidoCard from '../components/PedidoCard';
 import Logo from '../components/Logo';
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { conta, logout } = useAuth();
   const [pedidos, setPedidos] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -57,8 +59,9 @@ const Dashboard = () => {
       await carregarDados();
     })();
 
-    // Conectar socket para novos pedidos
-    socketService.connect();
+    // Conectar socket para novos pedidos — já identificado com a conta logada,
+    // pra receber só os pedidos deste quiosque
+    socketService.connect(conta?.id);
 
     // Listener para novos pedidos
     const handleNovoPedido = (data) => {
@@ -105,7 +108,7 @@ const Dashboard = () => {
       clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [audioEnabled]);
+  }, [audioEnabled, conta?.id]);
 
   const handleAtualizarStatus = async (pedidoId, novoStatus) => {
     try {
@@ -121,6 +124,13 @@ const Dashboard = () => {
       console.error('Erro ao atualizar status:', error);
       alert('Erro ao atualizar status do pedido');
     }
+  };
+
+  const handleSair = () => {
+    if (!confirm('Sair do painel?')) return;
+    socketService.disconnect();
+    logout();
+    navigate('/login');
   };
 
   const pedidosNovos = pedidos.filter((p) => p.status === 'pago');
@@ -160,6 +170,7 @@ const Dashboard = () => {
                 <h1 className="text-3xl font-display font-semibold">Painel do Quiosque</h1>
               </div>
               <p className="text-aqua-100 mt-1">
+                {conta?.nomeQuiosque ? `${conta.nomeQuiosque} · ` : ''}
                 {new Date().toLocaleDateString('pt-BR', {
                   weekday: 'long',
                   year: 'numeric',
@@ -169,7 +180,7 @@ const Dashboard = () => {
               </p>
             </div>
             
-            <div className="flex gap-3">
+            <div className="flex gap-3 flex-wrap justify-end">
               <button
                 onClick={carregarDados}
                 className="bg-mare-600 hover:bg-mare-500 px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
@@ -184,12 +195,27 @@ const Dashboard = () => {
               >
                 Gerenciar Produtos
               </button>
+
+              <button
+                onClick={() => navigate('/mesas')}
+                className="bg-aqua-500 hover:bg-aqua-400 px-4 py-2 rounded-lg font-semibold transition-colors"
+              >
+                Mesas
+              </button>
               
               <button
                 onClick={() => navigate('/contas')}
                 className="bg-purple-500 hover:bg-purple-400 px-4 py-2 rounded-lg font-semibold transition-colors"
               >
                 Contas
+              </button>
+
+              <button
+                onClick={handleSair}
+                className="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+              >
+                <LogOut size={18} />
+                Sair
               </button>
             </div>
           </div>

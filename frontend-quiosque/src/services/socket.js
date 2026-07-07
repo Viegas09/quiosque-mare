@@ -8,7 +8,9 @@ class SocketService {
     this.connected = false;
   }
 
-  connect() {
+  // contaId identifica de qual quiosque este painel deve receber eventos —
+  // sem isso, o backend não sabe pra qual sala direcionar os pedidos.
+  connect(contaId) {
     if (this.socket?.connected) {
       return this.socket;
     }
@@ -24,8 +26,8 @@ class SocketService {
       console.log('✅ Socket conectado:', this.socket.id);
       this.connected = true;
       
-      // Identificar como quiosque
-      this.socket.emit('identificar', { tipo: 'quiosque' });
+      // Identificar como quiosque, já vinculado à conta logada
+      this.socket.emit('identificar', { tipo: 'quiosque', contaId });
     });
 
     this.socket.on('disconnect', () => {

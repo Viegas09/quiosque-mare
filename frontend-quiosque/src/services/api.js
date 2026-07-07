@@ -10,8 +10,15 @@ const api = axios.create({
   },
 });
 
+// Anexa o token salvo (se existir) em toda requisição, sem precisar
+// passar isso manualmente em cada chamada de serviço.
 api.interceptors.request.use(
   (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+
     if (import.meta.env.DEV) {
       console.log('🚀 Request:', config.method?.toUpperCase(), config.url);
     }
@@ -32,6 +39,18 @@ api.interceptors.response.use(
   },
   (error) => {
     console.error('❌ Response error:', error.response?.status, error.message);
+
+    // Sessão expirada ou inválida — limpa e manda pro login, exceto se o
+    // próprio 401 já veio da tela de login (senha errada, por exemplo).
+    const isRotaAuth = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/auth/registro');
+    if (error.response?.status === 401 && !isRotaAuth) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('conta');
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    }
+
     return Promise.reject(error);
   }
 );
