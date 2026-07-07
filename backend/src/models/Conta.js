@@ -45,10 +45,9 @@ const contaSchema = new mongoose.Schema({
 });
 
 // Criptografa a senha automaticamente sempre que ela for criada/alterada
-contaSchema.pre('save', async function (next) {
-  if (!this.isModified('senha')) return next();
+contaSchema.pre('save', async function () {
+  if (!this.isModified('senha')) return;
   this.senha = await bcrypt.hash(this.senha, 10);
-  next();
 });
 
 // Compara a senha digitada no login com o hash salvo

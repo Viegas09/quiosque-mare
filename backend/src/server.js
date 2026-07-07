@@ -18,6 +18,12 @@ const contaRoutes = require('./routes/contaRoutes');
 
 // Inicializar app
 const app = express();
+
+// O Render (e a maioria dos serviços de hospedagem) coloca a aplicação
+// atrás de um proxy reverso, que adiciona o header X-Forwarded-For em toda
+// requisição. Sem isso, o express-rate-limit rejeita esse header por
+// segurança e a API quebra com erro 500 em qualquer rota.
+app.set('trust proxy', 1);
 const server = http.createServer(app);
 
 // Origens permitidas — se SOCKET_CORS_ORIGIN não estiver definida, cai para
