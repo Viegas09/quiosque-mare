@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { CarrinhoProvider } from './context/CarrinhoContext';
 import Entrada from './pages/Entrada';
+import EntradaMesa from './pages/EntradaMesa';
 
 // As demais telas só são baixadas quando o usuário efetivamente navega até
 // elas, em vez de tudo entrar no mesmo bundle inicial.
@@ -24,7 +25,13 @@ function App() {
       <CarrinhoProvider>
         <Suspense fallback={<CarregandoTela />}>
           <Routes>
+            {/* Sem quiosque identificado ainda — só permite escanear QR code */}
             <Route path="/" element={<Entrada />} />
+
+            {/* Link/QR do quiosque específico */}
+            <Route path="/:slug" element={<Entrada />} />
+            <Route path="/:slug/mesa/:token" element={<EntradaMesa />} />
+
             <Route path="/cardapio" element={<Cardapio />} />
             <Route path="/carrinho" element={<Carrinho />} />
             <Route path="/checkout" element={<Checkout />} />

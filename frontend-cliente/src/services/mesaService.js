@@ -7,9 +7,9 @@ export const mesaService = {
     return response.data;
   },
 
-  // Buscar mesa por número
-  buscarPorNumero: async (numero) => {
-    const response = await api.get(`/mesas/numero/${numero}`);
+  // Buscar mesa por número, dentro de um quiosque específico (slug)
+  buscarPorSlugENumero: async (slug, numero) => {
+    const response = await api.get(`/mesas/${slug}/numero/${numero}`);
     return response.data;
   },
 };

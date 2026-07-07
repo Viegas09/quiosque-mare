@@ -31,7 +31,7 @@ const Cardapio = () => {
     (async () => {
       try {
         setLoading(true);
-        const response = await produtoService.listar({ disponivel: true });
+        const response = await produtoService.listarPublico(mesa._id);
 
         if (response.success) {
           setProdutos(response.produtos);

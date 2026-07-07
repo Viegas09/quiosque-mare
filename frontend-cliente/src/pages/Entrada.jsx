@@ -1,7 +1,8 @@
-import { useState, Suspense, lazy } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, Suspense, lazy, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { QrCode, Hash, Loader2 } from 'lucide-react';
 import { mesaService } from '../services/mesaService';
+import { contaService } from '../services/contaService';
 import { useCarrinho } from '../context/useCarrinho';
 import Logo from '../components/Logo';
 
@@ -11,11 +12,28 @@ const QRScanner = lazy(() => import('../components/QRScanner'));
 
 const Entrada = () => {
   const navigate = useNavigate();
+  const { slug } = useParams(); // presente em /:slug, ausente em /
   const { definirMesa } = useCarrinho();
   const [modo, setModo] = useState(null); // 'qr' ou 'numero'
   const [numeroMesa, setNumeroMesa] = useState('');
   const [loading, setLoading] = useState(false);
   const [erro, setErro] = useState('');
+  const [nomeQuiosque, setNomeQuiosque] = useState('');
+
+  // Se a URL já identifica um quiosque (/:slug), busca o nome pra exibir
+  useEffect(() => {
+    if (!slug) return;
+
+    contaService.buscarPorSlug(slug)
+      .then((res) => {
+        if (res.success) {
+          setNomeQuiosque(res.conta.nomeQuiosque);
+        }
+      })
+      .catch(() => {
+        setErro('Quiosque não encontrado. Confira o link ou escaneie o QR code na mesa.');
+      });
+  }, [slug]);
 
   const handleQRCodeScan = async (token) => {
     setLoading(true);
@@ -50,7 +68,7 @@ const Entrada = () => {
     setErro('');
 
     try {
-      const response = await mesaService.buscarPorNumero(numeroMesa);
+      const response = await mesaService.buscarPorSlugENumero(slug, numeroMesa);
       
       if (response.success) {
         definirMesa(response.mesa);
@@ -174,7 +192,9 @@ const Entrada = () => {
             <Logo variant="mark" size={56} light />
           </div>
           <h1 className="text-4xl font-display font-semibold text-white mb-2">Maré</h1>
-          <p className="text-aqua-100 text-lg">Sua praia, sem fila.</p>
+          <p className="text-aqua-100 text-lg">
+            {nomeQuiosque ? `Você está em: ${nomeQuiosque}` : 'Sua praia, sem fila.'}
+          </p>
         </div>
 
         <div className="space-y-4">
@@ -193,24 +213,36 @@ const Entrada = () => {
             </div>
           </button>
 
-          <button
-            onClick={() => setModo('numero')}
-            className="w-full bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 active:scale-95"
-          >
-            <div className="flex items-center gap-4">
-              <div className="bg-green-100 p-4 rounded-xl">
-                <Hash size={40} className="text-green-500" />
+          {/* "Digitar Número" só funciona sabendo de qual quiosque se trata —
+              por isso só aparece quando a URL já tem o slug (/:slug) */}
+          {slug && (
+            <button
+              onClick={() => setModo('numero')}
+              className="w-full bg-white rounded-2xl p-6 shadow-xl hover:shadow-2xl transition-all transform hover:scale-105 active:scale-95"
+            >
+              <div className="flex items-center gap-4">
+                <div className="bg-green-100 p-4 rounded-xl">
+                  <Hash size={40} className="text-green-500" />
+                </div>
+                <div className="text-left flex-1">
+                  <h3 className="text-xl font-bold text-gray-800">Digitar Número</h3>
+                  <p className="text-gray-600 text-sm">Digite o número da mesa</p>
+                </div>
               </div>
-              <div className="text-left flex-1">
-                <h3 className="text-xl font-bold text-gray-800">Digitar Número</h3>
-                <p className="text-gray-600 text-sm">Digite o número da mesa</p>
-              </div>
-            </div>
-          </button>
+            </button>
+          )}
         </div>
 
+        {erro && (
+          <div className="mt-4 p-3 bg-coral-100 text-coral-700 rounded-lg text-center text-sm">
+            {erro}
+          </div>
+        )}
+
         <p className="text-center text-aqua-100 text-sm mt-8">
-          Escolha como deseja começar seu pedido
+          {slug
+            ? 'Escolha como deseja começar seu pedido'
+            : 'Escaneie o QR code na sua mesa para começar'}
         </p>
       </div>
     </div>
