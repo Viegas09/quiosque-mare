@@ -19,4 +19,14 @@ const limiteCriacaoPedido = rateLimit({
   message: { success: false, message: 'Muitos pedidos em pouco tempo. Aguarde alguns minutos.' }
 });
 
-module.exports = { limiteGeral, limiteCriacaoPedido };
+// Limite rígido para login/cadastro — evita tentativas de força bruta
+// de senha e criação em massa de contas falsas.
+const limiteLogin = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Muitas tentativas. Aguarde alguns minutos e tente novamente.' }
+});
+
+module.exports = { limiteGeral, limiteCriacaoPedido, limiteLogin };

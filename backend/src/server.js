@@ -13,6 +13,7 @@ const mesaRoutes = require('./routes/mesaRoutes');
 const produtoRoutes = require('./routes/produtoRoutes');
 const pedidoRoutes = require('./routes/pedidoRoutes');
 const sessaoRoutes = require('./routes/sessaoRoutes');
+const authRoutes = require('./routes/authRoutes');
 
 // Inicializar app
 const app = express();
@@ -58,6 +59,7 @@ app.use('/api/mesas', mesaRoutes);
 app.use('/api/produtos', produtoRoutes);
 app.use('/api/pedidos', pedidoRoutes);
 app.use('/api/sessoes', sessaoRoutes);
+app.use('/api/auth', authRoutes);
 
 // Rota de health check
 app.get('/health', (req, res) => {
