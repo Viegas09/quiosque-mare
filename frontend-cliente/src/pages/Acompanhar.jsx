@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Clock, ChefHat, CheckCircle, Loader2, Home } from 'lucide-react';
+import { Clock, ChefHat, CheckCircle, Loader2, Home, PartyPopper } from 'lucide-react';
 import { pedidoService } from '../services/pedidoService';
 import socketService from '../services/socket';
 import Header from '../components/Header';
@@ -49,6 +49,16 @@ const Acompanhar = () => {
   const [pedido, setPedido] = useState(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState('');
+  const [popupProntoVisivel, setPopupProntoVisivel] = useState(false);
+  const statusAnterior = useRef(null);
+
+  const tocarSomPronto = () => {
+    // Mesmo padrão de som usado no painel do quiosque — curto e discreto,
+    // não depende de nenhum arquivo externo.
+    const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjKI0fPTgjMGHm7A7+OZSA0PVqzn77BdGAg+mejyuWUhBjiR1/LMeSwF');
+    audio.volume = 0.5;
+    audio.play().catch(() => {});
+  };
 
   useEffect(() => {
     (async () => {
@@ -58,6 +68,7 @@ const Acompanhar = () => {
 
         if (response.success) {
           setPedido(response.pedido);
+          statusAnterior.current = response.pedido.status; // não dispara popup no carregamento inicial
         } else {
           setErro('Pedido não encontrado');
         }
@@ -81,8 +92,12 @@ const Acompanhar = () => {
           status: data.status,
         }));
 
-        // Notificação quando estiver pronto
-        if (data.status === 'pronto') {
+        // Só considera "acabou de ficar pronto" se o status anterior era
+        // outro — evita reabrir o popup à toa em reconexões do socket.
+        if (data.status === 'pronto' && statusAnterior.current !== 'pronto') {
+          setPopupProntoVisivel(true);
+          tocarSomPronto();
+
           if ('Notification' in window && Notification.permission === 'granted') {
             new Notification('Pedido Pronto! 🎉', {
               body: 'Seu pedido está pronto para retirada!',
@@ -90,6 +105,8 @@ const Acompanhar = () => {
             });
           }
         }
+
+        statusAnterior.current = data.status;
       }
     };
 
@@ -254,6 +271,27 @@ const Acompanhar = () => {
           Fazer Novo Pedido
         </button>
       </div>
+
+      {/* Popup de pedido pronto — aparece na hora, independente de qualquer
+          permissão de notificação do navegador (que no iPhone, por exemplo,
+          costuma nem funcionar dentro de um app aberto no navegador). */}
+      {popupProntoVisivel && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <PartyPopper size={64} className="text-mare-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-800 mb-2">Pedido Pronto! 🎉</h2>
+            <p className="text-gray-600 mb-6">
+              Pode vir retirar no balcão do quiosque.
+            </p>
+            <button
+              onClick={() => setPopupProntoVisivel(false)}
+              className="w-full bg-mare-600 text-white py-3 rounded-xl font-semibold hover:bg-mare-700 transition-colors"
+            >
+              Entendi
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
