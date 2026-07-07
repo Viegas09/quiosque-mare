@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const Conta = require('../models/Conta');
 const ValidationError = require('../utils/ValidationError');
+const { gerarSlugUnico } = require('../utils/slug');
 
 const gerarToken = (contaId) => {
   return jwt.sign({ contaId }, process.env.JWT_SECRET, { expiresIn: '30d' });
@@ -30,7 +31,12 @@ class AuthController {
       });
     }
 
-    const conta = new Conta({ nomeQuiosque, email, senha });
+    const slug = await gerarSlugUnico(nomeQuiosque, async (candidato) => {
+      const existe = await Conta.findOne({ slug: candidato });
+      return !!existe;
+    });
+
+    const conta = new Conta({ nomeQuiosque, slug, email, senha });
     await conta.save();
 
     const token = gerarToken(conta._id);
@@ -41,6 +47,7 @@ class AuthController {
       conta: {
         id: conta._id,
         nomeQuiosque: conta.nomeQuiosque,
+        slug: conta.slug,
         email: conta.email
       }
     });
@@ -76,6 +83,7 @@ class AuthController {
       conta: {
         id: conta._id,
         nomeQuiosque: conta.nomeQuiosque,
+        slug: conta.slug,
         email: conta.email
       }
     });
@@ -83,7 +91,7 @@ class AuthController {
 
   /**
    * Retorna os dados da conta logada (usado pelo painel pra confirmar
-   * que o token ainda é válido e trazer o nome do quiosque)
+   * que o token ainda é válido e trazer o nome/slug do quiosque)
    */
   async me(req, res) {
     res.json({
@@ -91,6 +99,7 @@ class AuthController {
       conta: {
         id: req.conta._id,
         nomeQuiosque: req.conta.nomeQuiosque,
+        slug: req.conta.slug,
         email: req.conta.email
       }
     });

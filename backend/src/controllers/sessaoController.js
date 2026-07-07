@@ -5,7 +5,7 @@ const Mesa = require('../models/Mesa');
 class SessaoController {
 
   /**
-   * Buscar sessão ativa de uma mesa
+   * Buscar sessão ativa de uma mesa (rota pública — usada pelo cliente)
    */
   async buscarSessaoAtiva(req, res) {
     const { mesaId } = req.params;
@@ -43,7 +43,7 @@ class SessaoController {
   }
 
   /**
-   * Fechar conta (finalizar sessão)
+   * Fechar conta (finalizar sessão) — rota pública, usada pelo cliente
    */
   async fecharConta(req, res) {
     const { mesaId } = req.params;
@@ -105,12 +105,12 @@ class SessaoController {
   }
 
   /**
-   * Listar todas as sessões
+   * Listar sessões da conta logada (painel, autenticado)
    */
   async listar(req, res) {
     const { status } = req.query;
 
-    const filtro = {};
+    const filtro = { conta: req.conta._id };
     if (status) {
       filtro.status = status;
     }
@@ -127,12 +127,12 @@ class SessaoController {
   }
 
   /**
-   * Buscar sessão por ID
+   * Buscar sessão por ID (painel, autenticado)
    */
   async buscarPorId(req, res) {
     const { id } = req.params;
 
-    const sessao = await Sessao.findById(id)
+    const sessao = await Sessao.findOne({ _id: id, conta: req.conta._id })
       .populate('mesa')
       .populate('pedidos');
 
@@ -150,12 +150,12 @@ class SessaoController {
   }
 
   /**
-   * Relatório de sessões fechadas (por período)
+   * Relatório de sessões fechadas da conta logada, por período (painel, autenticado)
    */
   async relatorio(req, res) {
     const { dataInicio, dataFim } = req.query;
 
-    const filtro = { status: 'fechada' };
+    const filtro = { conta: req.conta._id, status: 'fechada' };
 
     if (dataInicio) {
       filtro.fechadaEm = { $gte: new Date(dataInicio) };

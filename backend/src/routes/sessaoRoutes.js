@@ -2,12 +2,15 @@ const express = require('express');
 const router = express.Router();
 const sessaoController = require('../controllers/sessaoController');
 const asyncHandler = require('../middlewares/asyncHandler');
+const protegerRota = require('../middlewares/authMiddleware');
 
-// Rotas de sessão
+// Rotas públicas (usadas pelo cliente, sem login)
 router.get('/mesa/:mesaId', asyncHandler(sessaoController.buscarSessaoAtiva));
 router.post('/mesa/:mesaId/fechar', asyncHandler(sessaoController.fecharConta));
-router.get('/', asyncHandler(sessaoController.listar));
-router.get('/relatorio', asyncHandler(sessaoController.relatorio));
-router.get('/:id', asyncHandler(sessaoController.buscarPorId));
+
+// Rotas administrativas (painel do quiosque, exigem login)
+router.get('/', protegerRota, asyncHandler(sessaoController.listar));
+router.get('/relatorio', protegerRota, asyncHandler(sessaoController.relatorio));
+router.get('/:id', protegerRota, asyncHandler(sessaoController.buscarPorId));
 
 module.exports = router;

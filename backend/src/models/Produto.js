@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const produtoSchema = new mongoose.Schema({
+  conta: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Conta',
+    required: true,
+    index: true
+  },
   nome: {
     type: String,
     required: true,
@@ -40,7 +46,7 @@ const produtoSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Índice para busca por categoria
-produtoSchema.index({ categoria: 1, disponivel: 1 });
+// Índice para busca por categoria, já escopado por conta
+produtoSchema.index({ conta: 1, categoria: 1, disponivel: 1 });
 
 module.exports = mongoose.model('Produto', produtoSchema);

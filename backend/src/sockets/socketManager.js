@@ -10,11 +10,18 @@ class SocketManager {
 
       // Identificar tipo de cliente (quiosque ou cliente app)
       socket.on('identificar', (data) => {
-        const { tipo, pedidoId } = data;
+        const { tipo, pedidoId, contaId } = data;
 
         if (tipo === 'quiosque') {
-          socket.join('quiosque');
-          console.log(`🏪 Quiosque conectado: ${socket.id}`);
+          if (contaId) {
+            // Painel logado: só recebe eventos do próprio quiosque
+            socket.join(`quiosque:${contaId}`);
+            console.log(`🏪 Quiosque conectado (conta ${contaId}): ${socket.id}`);
+          } else {
+            // Compatibilidade: painel ainda sem login (antes da Fase 3)
+            socket.join('quiosque');
+            console.log(`🏪 Quiosque conectado (sem conta): ${socket.id}`);
+          }
         } else if (tipo === 'cliente' && pedidoId) {
           socket.join(`pedido:${pedidoId}`);
           console.log(`👤 Cliente conectado ao pedido ${pedidoId}: ${socket.id}`);
@@ -50,47 +57,6 @@ class SocketManager {
       socket.on('error', (error) => {
         console.error(`❌ Erro no socket ${socket.id}:`, error);
       });
-    });
-  }
-
-  // Métodos auxiliares para emitir eventos
-
-  emitirNovoPedido(pedido) {
-    this.io.to('quiosque').emit('pedido:novo', {
-      pedido,
-      timestamp: new Date()
-    });
-  }
-
-  emitirStatusAtualizado(pedidoId, status, statusAntigo) {
-    // Notificar cliente específico
-    this.io.to(`pedido:${pedidoId}`).emit('pedido:status_atualizado', {
-      pedidoId,
-      status,
-      statusAntigo,
-      timestamp: new Date()
-    });
-
-    // Notificar quiosque
-    this.io.to('quiosque').emit('pedido:status_atualizado', {
-      pedidoId,
-      status,
-      timestamp: new Date()
-    });
-  }
-
-  emitirPedidoPronto(pedidoId) {
-    this.io.to(`pedido:${pedidoId}`).emit('pedido:pronto', {
-      pedidoId,
-      timestamp: new Date()
-    });
-  }
-
-  emitirProdutoDisponibilidadeAlterada(produtoId, disponivel) {
-    this.io.emit('produto:disponibilidade_alterada', {
-      produtoId,
-      disponivel,
-      timestamp: new Date()
     });
   }
 }

@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const sessaoSchema = new mongoose.Schema({
+  conta: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Conta',
+    required: true,
+    index: true
+  },
   mesa: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Mesa',
@@ -35,5 +41,6 @@ const sessaoSchema = new mongoose.Schema({
 
 // Índice para buscar sessões abertas
 sessaoSchema.index({ mesa: 1, status: 1 });
+sessaoSchema.index({ conta: 1, status: 1 });
 
 module.exports = mongoose.model('Sessao', sessaoSchema);

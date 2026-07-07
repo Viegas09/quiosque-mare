@@ -7,6 +7,17 @@ const contaSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  // Identificador único usado na URL pública do cliente
+  // (ex: seusite.com/quiosque-do-vini/entrada). Gerado automaticamente
+  // a partir do nomeQuiosque no cadastro — ver authController.js.
+  slug: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true,
+    lowercase: true,
+    index: true
+  },
   email: {
     type: String,
     required: true,

@@ -9,7 +9,8 @@ const { PEDIDO_STATUS, PEDIDO_STATUS_VALUES } = require('../constants/status');
 class PedidoController {
 
   /**
-   * Criar novo pedido
+   * Criar novo pedido (rota pública — o cliente não faz login; a conta do
+   * pedido é sempre herdada da mesa escaneada/selecionada, nunca do body)
    */
   async criar(req, res) {
     const { mesaId, itens } = req.body;
@@ -31,7 +32,7 @@ class PedidoController {
       }
     }
 
-    // Validar mesa
+    // Validar mesa — é dela que descobrimos a qual conta este pedido pertence
     const mesa = await Mesa.findById(mesaId);
     if (!mesa) {
       return res.status(404).json({
@@ -40,13 +41,14 @@ class PedidoController {
       });
     }
 
-    // Validar e processar itens
+    // Validar e processar itens (sempre exigindo que o produto seja da MESMA
+    // conta da mesa — evita pedir um produto de outro quiosque)
     const itensProcessados = [];
     let total = 0;
     let tempoEstimadoTotal = 0;
 
     for (const item of itens) {
-      const produto = await Produto.findById(item.produtoId);
+      const produto = await Produto.findOne({ _id: item.produtoId, conta: mesa.conta });
 
       if (!produto) {
         return res.status(404).json({
@@ -88,6 +90,7 @@ class PedidoController {
 
     if (!sessao) {
       sessao = new Sessao({
+        conta: mesa.conta,
         mesa: mesaId,
         numeroMesa: mesa.numero
       });
@@ -101,6 +104,7 @@ class PedidoController {
 
     // Criar pedido
     const pedido = new Pedido({
+      conta: mesa.conta,
       mesa: mesaId,
       numeroMesa: mesa.numero,
       localizacaoMesa: mesa.localizacao,
@@ -125,7 +129,7 @@ class PedidoController {
   }
 
   /**
-   * Iniciar pagamento do pedido
+   * Iniciar pagamento do pedido (rota pública)
    */
   async iniciarPagamento(req, res) {
     const { id } = req.params;
@@ -180,9 +184,9 @@ class PedidoController {
       if (resultadoPagamento.status === 'approved') {
         pedido.status = PEDIDO_STATUS.PAGO;
 
-        // Emitir evento para o quiosque
+        // Emitir evento para o quiosque (só pra sala dessa conta)
         if (req.io) {
-          req.io.to('quiosque').emit('pedido:novo', pedido);
+          req.io.to(`quiosque:${pedido.conta}`).emit('pedido:novo', pedido);
         }
       }
     }
@@ -219,7 +223,7 @@ class PedidoController {
             pedido.status = PEDIDO_STATUS.PAGO;
 
             if (req.io) {
-              req.io.to('quiosque').emit('pedido:novo', pedido);
+              req.io.to(`quiosque:${pedido.conta}`).emit('pedido:novo', pedido);
               req.io.to(`pedido:${pedido._id}`).emit('pedido:pagamento_aprovado', {
                 pedidoId: pedido._id,
                 status: pedido.status
@@ -236,12 +240,12 @@ class PedidoController {
   }
 
   /**
-   * Listar pedidos (para o quiosque)
+   * Listar pedidos da conta logada (painel, autenticado)
    */
   async listar(req, res) {
     const { status, mesaId } = req.query;
 
-    const filtro = {};
+    const filtro = { conta: req.conta._id };
 
     if (status) {
       const statusList = status.split(',');
@@ -267,7 +271,8 @@ class PedidoController {
   }
 
   /**
-   * Buscar pedido por ID
+   * Buscar pedido por ID (rota pública — usada pelo cliente pra acompanhar
+   * o próprio pedido; o id já é imprevisível o suficiente para servir de chave)
    */
   async buscarPorId(req, res) {
     const { id } = req.params;
@@ -290,7 +295,7 @@ class PedidoController {
   }
 
   /**
-   * Atualizar status do pedido
+   * Atualizar status do pedido (painel, autenticado)
    */
   async atualizarStatus(req, res) {
     const { id } = req.params;
@@ -300,7 +305,7 @@ class PedidoController {
       throw new ValidationError(`Status inválido. Use um de: ${PEDIDO_STATUS_VALUES.join(', ')}`);
     }
 
-    const pedido = await Pedido.findById(id);
+    const pedido = await Pedido.findOne({ _id: id, conta: req.conta._id });
 
     if (!pedido) {
       return res.status(404).json({
@@ -331,7 +336,7 @@ class PedidoController {
         statusAntigo
       });
 
-      req.io.to('quiosque').emit('pedido:status_atualizado', {
+      req.io.to(`quiosque:${pedido.conta}`).emit('pedido:status_atualizado', {
         pedidoId: pedido._id,
         status: pedido.status
       });
@@ -344,20 +349,25 @@ class PedidoController {
   }
 
   /**
-   * Dashboard de estatísticas
+   * Dashboard de estatísticas da conta logada (painel, autenticado)
    */
   async dashboard(req, res) {
+    const contaId = req.conta._id;
+
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
 
     const stats = {
       pedidosHoje: await Pedido.countDocuments({
+        conta: contaId,
         createdAt: { $gte: hoje }
       }),
       pedidosAtivos: await Pedido.countDocuments({
+        conta: contaId,
         status: { $in: [PEDIDO_STATUS.PAGO, PEDIDO_STATUS.EM_PREPARACAO] }
       }),
       pedidosProntos: await Pedido.countDocuments({
+        conta: contaId,
         status: PEDIDO_STATUS.PRONTO
       }),
       receitaHoje: 0,
@@ -366,6 +376,7 @@ class PedidoController {
 
     // Calcular receita de hoje
     const pedidosPagos = await Pedido.find({
+      conta: contaId,
       createdAt: { $gte: hoje },
       status: { $in: [PEDIDO_STATUS.PAGO, PEDIDO_STATUS.EM_PREPARACAO, PEDIDO_STATUS.PRONTO, PEDIDO_STATUS.ENTREGUE] }
     });
@@ -374,6 +385,7 @@ class PedidoController {
 
     // Calcular tempo médio (pedidos finalizados hoje)
     const pedidosFinalizados = await Pedido.find({
+      conta: contaId,
       prontoEm: { $gte: hoje },
       iniciadoPreparoEm: { $ne: null }
     });

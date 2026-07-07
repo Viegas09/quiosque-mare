@@ -28,6 +28,12 @@ const itemPedidoSchema = new mongoose.Schema({
 });
 
 const pedidoSchema = new mongoose.Schema({
+  conta: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Conta',
+    required: true,
+    index: true
+  },
   mesa: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Mesa',
@@ -93,7 +99,7 @@ const pedidoSchema = new mongoose.Schema({
 });
 
 // Índices para queries frequentes
-pedidoSchema.index({ status: 1, createdAt: -1 });
+pedidoSchema.index({ conta: 1, status: 1, createdAt: -1 });
 pedidoSchema.index({ mesa: 1, createdAt: -1 });
 
 // Virtual para tempo de preparação total
