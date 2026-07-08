@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Search, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Loader2, Search, ToggleLeft, ToggleRight, Pencil, X, Image as ImageIcon } from 'lucide-react';
 import { produtoService } from '../services/produtoService';
 import Header from '../components/Header';
 
@@ -10,6 +10,10 @@ const Produtos = () => {
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
   const [categoriaFiltro, setCategoriaFiltro] = useState('todos');
+  const [produtoEditando, setProdutoEditando] = useState(null);
+  const [form, setForm] = useState({ nome: '', descricao: '', preco: '', imagemUrl: '' });
+  const [salvando, setSalvando] = useState(false);
+  const [erroForm, setErroForm] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -42,6 +46,55 @@ const Produtos = () => {
     } catch (error) {
       console.error('Erro ao atualizar disponibilidade:', error);
       alert('Erro ao atualizar produto');
+    }
+  };
+
+  const abrirEdicao = (produto) => {
+    setProdutoEditando(produto);
+    setForm({
+      nome: produto.nome,
+      descricao: produto.descricao,
+      preco: produto.preco,
+      imagemUrl: produto.imagemUrl || '',
+    });
+    setErroForm('');
+  };
+
+  const fecharEdicao = () => {
+    setProdutoEditando(null);
+  };
+
+  const handleSalvarEdicao = async (e) => {
+    e.preventDefault();
+    setErroForm('');
+
+    const precoNumero = Number(form.preco);
+    if (!form.nome.trim() || !form.descricao.trim() || Number.isNaN(precoNumero) || precoNumero < 0) {
+      setErroForm('Preencha nome, descrição e um preço válido');
+      return;
+    }
+
+    setSalvando(true);
+    try {
+      const response = await produtoService.atualizar(produtoEditando._id, {
+        nome: form.nome,
+        descricao: form.descricao,
+        preco: precoNumero,
+        imagemUrl: form.imagemUrl.trim() || null,
+      });
+
+      if (response.success) {
+        setProdutos((prev) =>
+          prev.map((p) => (p._id === produtoEditando._id ? response.produto : p))
+        );
+        setProdutoEditando(null);
+      } else {
+        setErroForm(response.message || 'Erro ao salvar produto');
+      }
+    } catch (error) {
+      setErroForm(error.response?.data?.message || 'Erro ao salvar produto');
+    } finally {
+      setSalvando(false);
     }
   };
 
@@ -121,6 +174,9 @@ const Produtos = () => {
                   <th className="px-6 py-4 text-center text-sm font-bold text-gray-700">
                     Disponível
                   </th>
+                  <th className="px-6 py-4 text-center text-sm font-bold text-gray-700">
+                    Editar
+                  </th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -174,6 +230,15 @@ const Produtos = () => {
                         )}
                       </button>
                     </td>
+                    <td className="px-6 py-4 text-center">
+                      <button
+                        onClick={() => abrirEdicao(produto)}
+                        className="inline-flex items-center gap-1 text-mare-600 hover:text-mare-800 font-semibold text-sm"
+                      >
+                        <Pencil size={16} />
+                        Editar
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -191,6 +256,97 @@ const Produtos = () => {
           {produtosFiltrados.length} produto(s) encontrado(s)
         </div>
       </div>
+
+      {/* Modal de edição */}
+      {produtoEditando && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800">Editar Produto</h2>
+              <button onClick={fecharEdicao} className="text-gray-400 hover:text-gray-600">
+                <X size={22} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSalvarEdicao} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Nome</label>
+                <input
+                  type="text"
+                  value={form.nome}
+                  onChange={(e) => setForm((f) => ({ ...f, nome: e.target.value }))}
+                  required
+                  className="w-full p-3 border-2 border-areia-200 rounded-xl focus:border-mare-600 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Descrição</label>
+                <textarea
+                  value={form.descricao}
+                  onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))}
+                  required
+                  rows={2}
+                  className="w-full p-3 border-2 border-areia-200 rounded-xl focus:border-mare-600 focus:outline-none resize-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">Preço (R$)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={form.preco}
+                  onChange={(e) => setForm((f) => ({ ...f, preco: e.target.value }))}
+                  required
+                  className="w-full p-3 border-2 border-areia-200 rounded-xl focus:border-mare-600 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1 flex items-center gap-1">
+                  <ImageIcon size={16} />
+                  URL da foto (opcional)
+                </label>
+                <input
+                  type="url"
+                  value={form.imagemUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, imagemUrl: e.target.value }))}
+                  placeholder="https://..."
+                  className="w-full p-3 border-2 border-areia-200 rounded-xl focus:border-mare-600 focus:outline-none"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Sem uma foto, o cardápio mostra um ícone da categoria no lugar. Cole aqui o
+                  link de uma imagem quando tiver uma foto do produto.
+                </p>
+                {form.imagemUrl && (
+                  <img
+                    src={form.imagemUrl}
+                    alt="Pré-visualização"
+                    className="mt-2 w-full h-32 object-cover rounded-lg border"
+                    onError={(e) => { e.target.style.display = 'none'; }}
+                  />
+                )}
+              </div>
+
+              {erroForm && (
+                <div className="p-3 bg-coral-100 text-coral-700 rounded-lg text-center text-sm">
+                  {erroForm}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={salvando}
+                className="w-full bg-mare-600 text-white py-3 rounded-xl font-semibold hover:bg-mare-700 transition-colors disabled:bg-gray-400 flex items-center justify-center gap-2"
+              >
+                {salvando ? <Loader2 className="animate-spin" size={20} /> : 'Salvar alterações'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
