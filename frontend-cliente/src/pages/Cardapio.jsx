@@ -14,6 +14,17 @@ const categoriasMap = {
   sobremesas: { nome: 'Sobremesas', emoji: '🍨' },
 };
 
+// Usado só quando o produto ainda não tem foto real (imagemUrl) — dá uma
+// identidade visual mínima ao cardápio sem depender de fotos.
+const categoriaCores = {
+  bebidas: 'from-sky-400 to-sky-600',
+  drinks: 'from-fuchsia-400 to-fuchsia-600',
+  petiscos: 'from-amber-400 to-amber-600',
+  porcoes: 'from-orange-400 to-orange-600',
+  pratos: 'from-emerald-400 to-emerald-600',
+  sobremesas: 'from-pink-400 to-pink-600',
+};
+
 const Cardapio = () => {
   const navigate = useNavigate();
   const { mesa, adicionarItem, quantidadeTotal, calcularTotal } = useCarrinho();
@@ -31,7 +42,7 @@ const Cardapio = () => {
     (async () => {
       try {
         setLoading(true);
-        const response = await produtoService.listarPublico(mesa._id);
+        const response = await produtoService.listar({ disponivel: true });
 
         if (response.success) {
           setProdutos(response.produtos);
@@ -164,6 +175,26 @@ const ProdutoCard = ({ produto, onAdicionar }) => {
 
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+      {/* Foto real do produto, se já tiver sido cadastrada; senão, um
+          banner colorido com o ícone da categoria — nunca fica sem nada */}
+      {produto.imagemUrl ? (
+        <img
+          src={produto.imagemUrl}
+          alt={produto.nome}
+          className="w-full h-32 object-cover"
+        />
+      ) : (
+        <div
+          className={`w-full h-32 flex items-center justify-center bg-gradient-to-br ${
+            categoriaCores[produto.categoria] || 'from-mare-400 to-mare-600'
+          }`}
+        >
+          <span className="text-5xl drop-shadow">
+            {categoriasMap[produto.categoria]?.emoji || '🍴'}
+          </span>
+        </div>
+      )}
+
       <div className="p-4">
         <h3 className="text-lg font-bold text-gray-800 mb-1">{produto.nome}</h3>
         <p className="text-sm text-gray-600 mb-3">{produto.descricao}</p>
